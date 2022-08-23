@@ -90,6 +90,20 @@ impl Ray {
         Ray { origin, direction }
     }
 
+    pub fn hit_sphere(&self, center: Vec3, radius: f64) -> Option<f64> {
+        let oc = self.origin - center;
+        let a = self.direction.len_squared();
+        let half_b = oc.dot(self.direction);
+        let c = oc.len_squared() - radius * radius;
+        let discriminant = (half_b * half_b) - (a * c);
+
+        if discriminant > 0.0 {
+            Some(-half_b - discriminant.sqrt() / a)
+        } else {
+            None
+        }
+    }
+
     pub fn origin(&self) -> Vec3 {
         self.origin
     }
@@ -103,14 +117,25 @@ impl Ray {
     }
 
     pub fn color(&self) -> Rgb<u8> {
+        let sphere_center = Vec3::new(0.0, 0.0, -2.0);
+        let sphere_radius = 1.0;
+        let hit = self.hit_sphere(sphere_center, sphere_radius);
+
+        if hit.is_some() {
+            let n = (self.at(hit.unwrap()) - sphere_center).unit();
+            let map = |x| {((x / 2.0 + 0.5) * 255.0) as u8};
+
+            return Rgb([map(n.0), map(n.1), map(n.2)]);
+        }
+
         if self.direction.1 > 0.0 {
             let t = (1.0 - self.direction.1) * 0.5;
-            let t = (127.0 + t * 127f64) as u8;
+            let t = (127.0 + t * 127.0) as u8;
 
-            Rgb([t, t, 255])
-        } else {
-            Rgb([127, 127, 127])
-        }
+            return Rgb([t, t, 255]);
+        };
+
+        Rgb([127, 127, 127])
     }
 }
 
