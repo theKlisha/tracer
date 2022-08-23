@@ -90,20 +90,6 @@ impl Ray {
         Ray { origin, direction }
     }
 
-    pub fn hit_sphere(&self, center: Vec3, radius: f64) -> Option<f64> {
-        let oc = self.origin - center;
-        let a = self.direction.len_squared();
-        let half_b = oc.dot(self.direction);
-        let c = oc.len_squared() - radius * radius;
-        let discriminant = (half_b * half_b) - (a * c);
-
-        if discriminant > 0.0 {
-            Some(-half_b - discriminant.sqrt() / a)
-        } else {
-            None
-        }
-    }
-
     pub fn origin(&self) -> Vec3 {
         self.origin
     }
@@ -119,12 +105,18 @@ impl Ray {
     pub fn color(&self) -> Rgb<u8> {
         let sphere_center = Vec3::new(0.0, 0.0, -2.0);
         let sphere_radius = 1.0;
-        let hit = self.hit_sphere(sphere_center, sphere_radius);
+        let sphere = Sphere {
+            center: sphere_center,
+            radius: sphere_radius,
+        };
 
-        if hit.is_some() {
-            let n = (self.at(hit.unwrap()) - sphere_center).unit();
-            let map = |x| {((x / 2.0 + 0.5) * 255.0) as u8};
+        let hit_record = sphere.hit(self, 0.0, 100.0);
 
+        if hit_record.is_some() {
+            let hit_record = hit_record.unwrap();
+            let n = hit_record.normal;
+
+            let map = |x| ((x / 2.0 + 0.5) * 255.0) as u8;
             return Rgb([map(n.0), map(n.1), map(n.2)]);
         }
 
@@ -139,6 +131,70 @@ impl Ray {
     }
 }
 
+#[derive(Debug)]
+pub enum Face {
+    Front,
+    Back,
+}
+
+#[derive(Debug)]
+pub struct HitRecord {
+    pub point: Vec3,
+    pub normal: Vec3,
+    pub face: Face,
+    pub t: f64,
+}
+
+impl HitRecord {
+    pub fn new(point: Vec3, normal: Vec3, t: f64) -> Self {
+        let face = match point.dot(normal) > 0.0 {
+            true => Face::Front,
+            false => Face::Back,
+        };
+
+        Self {
+            point,
+            normal,
+            face,
+            t,
+        }
+    }
+}
+
+pub trait Hittable {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
+}
+
+pub struct Sphere {
+    pub center: Vec3,
+    pub radius: f64,
+}
+
+impl Hittable for Sphere {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let oc = ray.origin - self.center;
+        let a = ray.direction.len_squared();
+        let half_b = oc.dot(ray.direction);
+        let c = oc.len_squared() - self.radius * self.radius;
+        let discriminant = (half_b * half_b) - (a * c);
+
+        if discriminant < 0.0 {
+            return None;
+        }
+
+        let t = -half_b - discriminant.sqrt() / a;
+
+        if t < t_min || t > t_max {
+            return None;
+        }
+
+        let point = ray.at(t);
+        let normal = (point - self.center) / self.radius;
+
+        Some(HitRecord::new(point, normal, t))
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Color {
     pub r: f64,
@@ -146,7 +202,7 @@ pub struct Color {
     pub b: f64,
 }
 
-#[derive(PartialEq, Clone, Debug, Copy)]
+#[derive(PartialEq, Clone, Debug, Copy, Default)]
 pub struct Vec3(f64, f64, f64);
 
 impl Vec3 {
