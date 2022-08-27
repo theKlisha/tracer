@@ -1,29 +1,30 @@
-use crate::ray::{Ray, Vec3};
 use derive_builder::Builder;
 use nalgebra::{Matrix3, Matrix4, Matrix4x3, RowVector3, Vector3};
 
+use crate::Ray;
+
 pub trait Camera {
-    fn ray(&self, u: f64, v: f64) -> Ray;
+    fn ray(&self, u: f32, v: f32) -> Ray;
 }
 
 #[derive(Builder)]
 pub struct HomogenousCamera {
     image_width: u32,
     image_height: u32,
-    focal_lenght: f64,
-    pixel_width: f64,
-    pixel_height: f64,
-    translation: Matrix4<f64>,
-    rotation: Matrix4<f64>,
+    focal_lenght: f32,
+    pixel_width: f32,
+    pixel_height: f32,
+    translation: Matrix4<f32>,
+    rotation: Matrix4<f32>,
 
     #[builder(setter(custom))]
-    extrinsic_transform: Matrix4<f64>,
+    extrinsic_transform: Matrix4<f32>,
 
     #[builder(setter(custom))]
-    intrinsic_transform: Matrix4x3<f64>,
+    intrinsic_transform: Matrix4x3<f32>,
 
     #[builder(setter(custom))]
-    camera_transform: Matrix4x3<f64>,
+    camera_transform: Matrix4x3<f32>,
 }
 
 impl HomogenousCameraBuilder {
@@ -48,8 +49,8 @@ impl HomogenousCameraBuilder {
         let f = self.focal_lenght.unwrap();
         let pxw = self.pixel_width.unwrap();
         let pxh = self.pixel_height.unwrap();
-        let imgw = self.image_width.unwrap() as f64;
-        let imgh = self.image_height.unwrap() as f64;
+        let imgw = self.image_width.unwrap() as f32;
+        let imgh = self.image_height.unwrap() as f32;
 
         let perspective = Matrix4x3::from_rows(&[
             RowVector3::new(1.0 / f, 0.0, 0.0),
@@ -78,11 +79,11 @@ impl HomogenousCameraBuilder {
 }
 
 impl Camera for HomogenousCamera {
-    fn ray(&self, u: f64, v: f64) -> Ray {
+    fn ray(&self, u: f32, v: f32) -> Ray {
         let r = self.camera_transform * Vector3::new(u, v, 1.0);
         let origin = Vector3::new(0.0, 0.0, self.focal_lenght);
         let direction = Vector3::from_homogeneous(r).unwrap().normalize();
 
-        Ray::new(Vec3::from(origin), Vec3::from(direction))
+        Ray::new(origin, direction)
     }
 }
