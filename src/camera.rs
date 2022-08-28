@@ -7,7 +7,7 @@ pub trait Camera {
 }
 
 pub struct RayCaster {
-    origin: Vector3<f32>,
+    origin: Point3<f32>,
     transform: Matrix4x3<f32>,
 }
 
@@ -87,6 +87,9 @@ impl Camera for PerspectiveCamera {
         let transform = extrinsics * intrinsics;
         let origin = self.translation;
 
-        RayCaster { origin, transform }
+        RayCaster {
+            origin: origin.into(),
+            transform,
+        }
     }
 }

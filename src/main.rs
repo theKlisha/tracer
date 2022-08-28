@@ -1,4 +1,7 @@
+mod algorythms;
 mod camera;
+
+use algorythms::{moller_trumbore_intersection, sphere_intersection};
 use camera::{Camera, PerspectiveCameraBuilder};
 use image::{Rgb, RgbImage};
 use indicatif::{ProgressBar, ProgressStyle};
@@ -81,12 +84,12 @@ pub trait Hittable {
 
 #[derive(Debug)]
 pub struct Ray {
-    origin: Vector3<f32>,
+    origin: Point3<f32>,
     direction: Vector3<f32>,
 }
 
 impl Ray {
-    pub fn new(origin: Vector3<f32>, direction: Vector3<f32>) -> Self {
+    pub fn new(origin: Point3<f32>, direction: Vector3<f32>) -> Self {
         debug_assert!(
             (direction - direction.normalize()).magnitude() < 1e-5,
             "direction is not an unit vector"
@@ -95,7 +98,7 @@ impl Ray {
         Ray { origin, direction }
     }
 
-    pub fn at(&self, t: f32) -> Vector3<f32> {
+    pub fn at(&self, t: f32) -> Point3<f32> {
         self.origin + (self.direction * t)
     }
 }
@@ -108,111 +111,64 @@ pub enum Face {
 
 #[derive(Debug)]
 pub struct HitRecord {
-    pub point: Vector3<f32>,
-    pub normal: Vector3<f32>,
-    pub face: Face,
-    pub t: f32,
+    point: Point3<f32>,
+    normal: Vector3<f32>,
+    // face: Face,
+    t: f32,
 }
 
 impl HitRecord {
-    pub fn new(point: Vector3<f32>, normal: Vector3<f32>, t: f32) -> Self {
-        let face = match point.dot(&normal) > 0.0 {
-            true => Face::Front,
-            false => Face::Back,
-        };
+    pub fn new(point: Point3<f32>, normal: Vector3<f32>, t: f32) -> Self {
+        // let face = match point.dot(&normal) > 0.0 {
+        //     true => Face::Front,
+        //     false => Face::Back,
+        // };
 
         Self {
             point,
             normal,
-            face,
+            // face,
             t,
         }
     }
 }
 
 pub struct Sphere {
-    pub center: Vector3<f32>,
+    pub center: Point3<f32>,
     pub radius: f32,
 }
 
 impl Hittable for Sphere {
     fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
-        let oc = ray.origin - self.center;
-        let a = ray.direction.magnitude_squared();
-        let half_b = oc.dot(&ray.direction);
-        let c = oc.magnitude_squared() - self.radius * self.radius;
-        let discriminant = (half_b * half_b) - (a * c);
+        let t = sphere_intersection(&ray.origin, &ray.direction, &self.center, self.radius);
 
-        if discriminant < 0.0 {
-            return None;
+        match t {
+            Some((t0, _)) if t0 < t_min || t0 > t_max => {
+                let point = ray.at(t0);
+                let normal = (point - self.center) / self.radius;
+                Some(HitRecord::new(point, normal, t0))
+            }
+            _ => None,
         }
-
-        let t = -half_b - discriminant.sqrt() / a;
-
-        if t < t_min || t > t_max {
-            return None;
-        }
-
-        let point = ray.at(t);
-        let normal = (point - self.center) / self.radius;
-
-        Some(HitRecord::new(point, normal, t))
     }
 }
 
 pub struct Triangle {
-    vertices: [Vector3<f32>; 3],
+    vertices: [Point3<f32>; 3],
     normal: Vector3<f32>,
-}
-
-pub fn moller_trumbore(ray: &Ray, triangle: &Triangle) -> Option<f32> {
-    const EPSILON: f32 = 1e-5;
-
-    let edge1 = triangle.vertices[1] - triangle.vertices[0];
-    let edge2 = triangle.vertices[2] - triangle.vertices[0];
-    let h = ray.direction.cross(&edge2);
-    let a = edge1.dot(&h);
-
-    if a.abs() < EPSILON {
-        // ray is parallel to the triangle.
-        return None;
-    }
-
-    let f = 1.0 / a;
-    let s = ray.origin - triangle.vertices[0];
-    let u = f * s.dot(&h);
-
-    if u < 0.0 || u > 1.0 {
-        return None;
-    }
-
-    let q = s.cross(&edge1);
-    let v = f * ray.direction.dot(&q);
-
-    if v < 0.0 || u + v > 1.0 {
-        return None;
-    }
-
-    // compute intersection point
-    let t = f * edge2.dot(&q);
-
-    if t < EPSILON {
-        // line intersection but not ray intersection
-        return None;
-    }
-
-    Some(t)
 }
 
 impl Hittable for Triangle {
     fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
-        let t = moller_trumbore(&ray, self);
-        t.map(|t| HitRecord {
-            point: ray.at(t),
-            normal: self.normal,
-            face: Face::Front,
-            t,
-        })
+        let t = moller_trumbore_intersection(
+            &ray.origin,
+            &ray.direction,
+            self.vertices[0],
+            self.vertices[1],
+            self.vertices[2],
+        );
+
+        t.map(|t| HitRecord::new(ray.at(t), self.normal, t))
     }
 }
 
@@ -229,7 +185,7 @@ impl From<&tobj::Mesh> for Mesh {
             .map(|(indices, normal)| {
                 let position = |i| {
                     let p = m.positions.chunks(3).nth(i).unwrap();
-                    Vector3::new(p[0], p[1], p[2])
+                    Point3::new(p[0], p[1], p[2])
                 };
 
                 Triangle {
