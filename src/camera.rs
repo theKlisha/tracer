@@ -36,11 +36,11 @@ impl HomogenousCameraBuilder {
     }
 
     pub fn extrinsic_transform(&mut self) -> &mut Self {
-        let translation = self.translation.unwrap();
-        let rotation = self.rotation.unwrap();
+        let translation_inv = Matrix4::new_translation(&self.translation.unwrap()).try_inverse().unwrap();
+        let rotation_inv = self.rotation.unwrap().try_inverse().unwrap();
 
         self.extrinsic_transform =
-            Some(translation.try_inverse().unwrap() * rotation.try_inverse().unwrap());
+            Some(translation_inv * rotation_inv);
 
         self
     }
@@ -81,7 +81,7 @@ impl HomogenousCameraBuilder {
 impl Camera for HomogenousCamera {
     fn ray(&self, u: f32, v: f32) -> Ray {
         let r = self.camera_transform * Vector3::new(u, v, 1.0);
-        let origin = Vector3::new(0.0, 0.0, self.focal_lenght);
+        let origin = self.translation;
         let direction = Vector3::from_homogeneous(r).unwrap().normalize();
 
         Ray::new(origin, direction)

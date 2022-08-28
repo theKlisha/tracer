@@ -4,18 +4,22 @@ use camera::{Camera, HomogenousCameraBuilder};
 use image::{Rgb, RgbImage};
 use indicatif::{ProgressBar, ProgressStyle};
 use nalgebra::{Matrix4, Vector3};
+use tobj;
 
 fn main() {
-    let sphere = Sphere {
-        center: Vector3::new(0.0, 0.0, -1.0),
-        radius: 0.5,
-    };
+    let obj = tobj::load_obj("./monkey.obj", &tobj::GPU_LOAD_OPTIONS);
+    let (models, _materials) = obj.unwrap();
+    let mesh: Mesh = Mesh::from(&models[0].mesh);
 
     let camera = HomogenousCameraBuilder::default()
-        .translation(Matrix4::new_translation(&Vector3::new(0.0, 0.0, 0.0)))
-        .rotation(Matrix4::from_euler_angles(0.0, 180f32.to_radians(), 0.0))
+        .translation(Vector3::new(0.0, 0.0, 5.0))
+        .rotation(Matrix4::from_euler_angles(
+            0_f32.to_radians(),
+            180_f32.to_radians(),
+            0_f32.to_radians(),
+        ))
         .image_size(800, 450)
-        .focal_lenght(1.0)
+        .focal_lenght(2.0)
         .pixel_width(1.0 / 450.0)
         .pixel_height(1.0 / 450.0)
         .extrinsic_transform()
@@ -25,7 +29,7 @@ fn main() {
         .unwrap();
 
     let renderer = Renderer::new();
-    renderer.render(&camera, &sphere).save("./out.png").unwrap();
+    renderer.render(&camera, &mesh).save("./out.png").unwrap();
 }
 
 pub struct Renderer {
@@ -158,5 +162,111 @@ impl Hittable for Sphere {
         let normal = (point - self.center) / self.radius;
 
         Some(HitRecord::new(point, normal, t))
+    }
+}
+
+pub struct Triangle {
+    vertices: [Vector3<f32>; 3],
+    normal: Vector3<f32>,
+}
+
+pub fn moller_trumbore(ray: &Ray, triangle: &Triangle) -> Option<f32> {
+    const EPSILON: f32 = 1e-5;
+
+    let edge1 = triangle.vertices[1] - triangle.vertices[0];
+    let edge2 = triangle.vertices[2] - triangle.vertices[0];
+    let h = ray.direction.cross(&edge2);
+    let a = edge1.dot(&h);
+
+    if a.abs() < EPSILON {
+        // ray is parallel to the triangle.
+        return None;
+    }
+
+    let f = 1.0 / a;
+    let s = ray.origin - triangle.vertices[0];
+    let u = f * s.dot(&h);
+
+    if u < 0.0 || u > 1.0 {
+        return None;
+    }
+
+    let q = s.cross(&edge1);
+    let v = f * ray.direction.dot(&q);
+
+    if v < 0.0 || u + v > 1.0 {
+        return None;
+    }
+
+    // compute intersection point
+    let t = f * edge2.dot(&q);
+
+    if t < EPSILON {
+        // line intersection but not ray intersection
+        return None;
+    }
+
+    Some(t)
+}
+
+impl Hittable for Triangle {
+    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
+        let t = moller_trumbore(&ray, self);
+        t.map(|t| HitRecord {
+            point: ray.at(t),
+            normal: self.normal,
+            face: Face::Front,
+            t,
+        })
+    }
+}
+
+pub struct Mesh {
+    pub faces: Vec<Triangle>,
+}
+
+impl From<&tobj::Mesh> for Mesh {
+    fn from(m: &tobj::Mesh) -> Self {
+        let faces = m
+            .indices
+            .chunks(3)
+            .zip(m.normals.chunks(3))
+            .map(|(indices, normal)| {
+                let position = |i| {
+                    let p = m.positions.chunks(3).nth(i).unwrap();
+                    Vector3::new(p[0], p[1], p[2])
+                };
+
+                Triangle {
+                    vertices: [
+                        position(indices[0] as usize),
+                        position(indices[1] as usize),
+                        position(indices[2] as usize),
+                    ],
+                    normal: Vector3::new(normal[0], normal[1], normal[2]),
+                }
+            })
+            .collect();
+
+        Mesh { faces }
+    }
+}
+
+impl Hittable for Mesh {
+    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
+        self.faces
+            .iter()
+            .map(|f| f.hit(ray, t_min, t_max))
+            .fold(None, |rec, min| match (rec, min) {
+                (Some(rec), Some(min)) => {
+                    if rec.t < min.t {
+                        Some(rec)
+                    } else {
+                        Some(min)
+                    }
+                }
+                (Some(rec), None) => Some(rec),
+                (None, min) => min,
+            })
     }
 }
