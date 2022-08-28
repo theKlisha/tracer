@@ -1,9 +1,8 @@
 mod camera;
-
-use camera::{Camera, HomogenousCameraBuilder};
+use camera::{Camera, PerspectiveCameraBuilder};
 use image::{Rgb, RgbImage};
 use indicatif::{ProgressBar, ProgressStyle};
-use nalgebra::{Matrix4, Vector3};
+use nalgebra::{Point3, Vector3};
 use tobj;
 
 fn main() {
@@ -11,20 +10,13 @@ fn main() {
     let (models, _materials) = obj.unwrap();
     let mesh: Mesh = Mesh::from(&models[0].mesh);
 
-    let camera = HomogenousCameraBuilder::default()
-        .translation(Vector3::new(0.0, 0.0, 5.0))
-        .rotation(Matrix4::from_euler_angles(
-            0_f32.to_radians(),
-            180_f32.to_radians(),
-            0_f32.to_radians(),
-        ))
+    let camera = PerspectiveCameraBuilder::default()
         .image_size(800, 450)
-        .focal_lenght(2.0)
+        .focal_lenght(1.0)
         .pixel_width(1.0 / 450.0)
         .pixel_height(1.0 / 450.0)
-        .extrinsic_transform()
-        .intrinsic_transform()
-        .camera_transform()
+        .translation(Vector3::new(2.0, 1.0, 2.0))
+        .look_at(Point3::new(0.0, 0.0, 0.0))
         .build()
         .unwrap();
 
@@ -42,6 +34,9 @@ impl Renderer {
     }
 
     pub fn render(&self, camera: &dyn Camera, hittable: &dyn Hittable) -> RgbImage {
+        let ray_caster = camera.ray_caster();
+
+        // TODO: use camera serrings instead of hardcoding values in renderer
         let width = 800;
         let height = 450;
 
@@ -56,7 +51,7 @@ impl Renderer {
 
         for y in 0..height {
             for x in 0..width {
-                let ray = camera.ray(x as f32, y as f32);
+                let ray = ray_caster.ray(x as f32, y as f32);
                 let record = hittable.hit(&ray, 0.0, 100.0);
                 let color = match record {
                     Some(hit_record) => {
