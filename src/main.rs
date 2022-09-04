@@ -9,22 +9,20 @@ use nalgebra::{Point3, Vector3};
 use tobj;
 
 fn main() {
-    let obj = tobj::load_obj("./monkey.obj", &tobj::GPU_LOAD_OPTIONS);
-    let (models, _materials) = obj.unwrap();
-    let mesh: Mesh = Mesh::from(&models[0].mesh);
+    let scene = Scene::load_obj("./scene.obj");
 
     let camera = PerspectiveCameraBuilder::default()
         .image_size(800, 450)
-        .focal_lenght(1.0)
+        .focal_lenght(2.0)
         .pixel_width(1.0 / 450.0)
         .pixel_height(1.0 / 450.0)
-        .translation(Vector3::new(2.0, 1.0, 2.0))
+        .translation(Vector3::new(5.0, 5.0, 10.0))
         .look_at(Point3::new(0.0, 0.0, 0.0))
         .build()
         .unwrap();
 
     let renderer = Renderer::new();
-    renderer.render(&camera, &mesh).save("./out.png").unwrap();
+    renderer.render(&camera, &scene).save("./out.png").unwrap();
 }
 
 pub struct Renderer {
@@ -208,6 +206,39 @@ impl Hittable for Mesh {
         self.faces
             .iter()
             .map(|f| f.hit(ray, t_min, t_max))
+            .fold(None, |rec, min| match (rec, min) {
+                (Some(rec), Some(min)) => {
+                    if rec.t < min.t {
+                        Some(rec)
+                    } else {
+                        Some(min)
+                    }
+                }
+                (Some(rec), None) => Some(rec),
+                (None, min) => min,
+            })
+    }
+}
+
+pub struct Scene {
+    meshes: Vec<Mesh>,
+}
+
+impl Scene {
+    pub fn load_obj(file_name: &str) -> Scene {
+        let obj = tobj::load_obj(file_name, &tobj::GPU_LOAD_OPTIONS);
+        let (models, _materials) = obj.unwrap();
+        let meshes = models.into_iter().map(|m| Mesh::from(&m.mesh)).collect();
+
+        Scene { meshes }
+    }
+}
+
+impl Hittable for Scene {
+    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
+        self.meshes
+            .iter()
+            .map(|mesh| mesh.hit(ray, t_min, t_max))
             .fold(None, |rec, min| match (rec, min) {
                 (Some(rec), Some(min)) => {
                     if rec.t < min.t {

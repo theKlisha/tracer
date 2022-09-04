@@ -12,3 +12,7 @@ image = "0.24.3"
 indicatif = "0.17.0"
 nalgebra = "0.31.1"
 tobj = { version = "3.2.3", features = ["log"]}
+
+[profile.release]
+# For better flamegraph
+debug = true
