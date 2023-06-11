@@ -1,45 +1,56 @@
-use crate::Ray;
+use crate::{
+    math::{Matrix4, Matrix4x3, Point3, Vector3, RowVector3, Matrix3},
+    traits::RayCaster,
+    Ray,
+};
 use derive_builder::Builder;
-use nalgebra::{Matrix3, Matrix4, Matrix4x3, Point3, RowVector3, Vector3};
 
-pub trait Camera {
-    fn ray_caster(&self) -> RayCaster;
+#[derive(Builder)]
+pub struct PerspectiveCamera {
+    #[builder(default = "1.0")]
+    aspect_ratio: f64,
+
+    #[builder(default = "1.0")]
+    focal_lenght: f64,
+
+    translation: Vector3,
+    rotation_matrix: Matrix4,
 }
 
-pub struct RayCaster {
-    origin: Point3<f32>,
-    transform: Matrix4x3<f32>,
+pub struct PerspectiveCameraCaster {
+    origin: Point3,
+    transform: Matrix4x3,
 }
 
-impl RayCaster {
-    pub fn ray(&self, u: f32, v: f32) -> Ray {
+impl RayCaster for PerspectiveCameraCaster {
+    fn cast(&self, u: f64, v: f64) -> Ray {
         let direction = self.transform * Vector3::new(u, v, 1.0);
-        let direction = Vector3::from_homogeneous(direction).unwrap().normalize();
+        let direction = nalgebra::Vector3::from_homogeneous(direction)
+            .unwrap()
+            .normalize();
         Ray::new(self.origin, direction)
     }
 }
 
-#[derive(Builder)]
-pub struct PerspectiveCamera {
-    image_width: u32,
-    image_height: u32,
-    focal_lenght: f32,
-    pixel_width: f32,
-    pixel_height: f32,
-    translation: Vector3<f32>,
-    rotation_matrix: Matrix4<f32>,
-}
-
 impl PerspectiveCameraBuilder {
-    pub fn image_size(&mut self, width: u32, height: u32) -> &mut Self {
-        self.image_width = Some(width);
-        self.image_height = Some(height);
+    pub fn aspect_frac<T>(&mut self, width: T, height: T) -> &mut Self
+    where
+        f64: From<T>,
+    {
+        let ratio = f64::from(width) / f64::from(height);
+        self.aspect_ratio(ratio);
         self
     }
 
-    pub fn look_at(&mut self, target: Point3<f32>) -> &mut Self {
+    pub fn focal_lenght_mm(&mut self, focal_lenght: u32) -> &mut Self {
+        let focal_lenght = focal_lenght as f64 / 1000.0;
+        self.focal_lenght(focal_lenght);
+        self
+    }
+
+    pub fn look_at(&mut self, target: Point3) -> &mut Self {
         let matrix = Matrix4::look_at_rh(
-            &self.translation.unwrap().into(),
+            &self.translation.expect("no translation provided").into(),
             &target,
             &Vector3::new(0.0, 1.0, 0.0),
         );
@@ -49,8 +60,8 @@ impl PerspectiveCameraBuilder {
     }
 }
 
-impl Camera for PerspectiveCamera {
-    fn ray_caster(&self) -> RayCaster {
+impl PerspectiveCamera {
+    pub fn ray_caster(&self) -> PerspectiveCameraCaster {
         let extrinsics = {
             let translation_inv = Matrix4::new_translation(&self.translation)
                 .try_inverse()
@@ -61,10 +72,10 @@ impl Camera for PerspectiveCamera {
 
         let intrinsics = {
             let f = self.focal_lenght;
-            let pxw = self.pixel_width;
-            let pxh = self.pixel_height;
-            let imgw = self.image_width as f32;
-            let imgh = self.image_height as f32;
+            let pxw = self.aspect_ratio;
+            let pxh = 1.0;
+            let imgw = 1.0;
+            let imgh = 1.0;
 
             let perspective = Matrix4x3::from_rows(&[
                 RowVector3::new(1.0 / f, 0.0, 0.0),
@@ -87,7 +98,7 @@ impl Camera for PerspectiveCamera {
         let transform = extrinsics * intrinsics;
         let origin = self.translation;
 
-        RayCaster {
+        PerspectiveCameraCaster {
             origin: origin.into(),
             transform,
         }

@@ -1,13 +1,13 @@
-use nalgebra::{Point3, Vector3};
+use crate::math::{Point3, Vector3};
 
 pub fn moller_trumbore_intersection(
-    origin: &Point3<f32>,
-    direction: &Vector3<f32>,
-    v0: Point3<f32>,
-    v1: Point3<f32>,
-    v2: Point3<f32>,
-) -> Option<f32> {
-    const EPSILON: f32 = 1e-5;
+    origin: &Point3,
+    direction: &Vector3,
+    v0: &Point3,
+    v1: &Point3,
+    v2: &Point3,
+) -> Option<f64> {
+    const EPSILON: f64 = 1e-5;
 
     let edge1 = v1 - v0;
     let edge2 = v2 - v0;
@@ -46,11 +46,11 @@ pub fn moller_trumbore_intersection(
 }
 
 pub fn sphere_intersection(
-    origin: &Point3<f32>,
-    direction: &Vector3<f32>,
-    center: &Point3<f32>,
-    radius: f32,
-) -> Option<(f32, f32)> {
+    origin: &Point3,
+    direction: &Vector3,
+    center: &Point3,
+    radius: f64,
+) -> Option<(f64, f64)> {
     let oc = origin - center;
     let a = direction.magnitude_squared();
     let half_b = oc.dot(&direction);
@@ -60,8 +60,8 @@ pub fn sphere_intersection(
     if discriminant > 0.0 {
         let p = half_b / a;
         let q = discriminant.sqrt() / a;
-        let t0 = - p - q;
-        let t1 = - p + q;
+        let t0 = -p - q;
+        let t1 = -p + q;
         Some((t0, t1))
     } else {
         None
