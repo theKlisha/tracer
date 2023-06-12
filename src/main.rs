@@ -9,7 +9,7 @@ use algorythms::sphere_intersection;
 use camera::perspective::PerspectiveCameraBuilder;
 use math::{Point3, Vector3};
 use renderer::HitRecord;
-use sampler::normal::NormalSampler;
+use sampler::{normal::NormalSampler, simple_diffuse::SimpleDiffuseSampler};
 use traits::{Hittable, Sampler};
 
 fn main() {
@@ -21,7 +21,7 @@ fn main() {
     });
 
     hittables.push(Sphere {
-        center: Point3::new(0.0, -102.0, 0.0),
+        center: Point3::new(0.0, -101.0, 0.0),
         radius: 100.0,
     });
 
@@ -34,7 +34,8 @@ fn main() {
         .expect("Failed to build camera");
 
     let hittables: Box<dyn Hittable> = hittables;
-    let sampler: Box<dyn Sampler<_>> = Box::new(NormalSampler {});
+    // let sampler: Box<dyn Sampler<_>> = Box::new(NormalSampler {});
+    let sampler: Box<dyn Sampler<_>> = Box::new(SimpleDiffuseSampler::default());
 
     renderer::simple_renderer::render(&camera.ray_caster(), &hittables, &sampler, 1920, 1080)
         .save("./out.png")
