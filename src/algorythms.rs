@@ -1,4 +1,5 @@
 use crate::math::{Point3, Vector3};
+use rand::Rng;
 
 pub fn moller_trumbore_intersection(
     origin: &Point3,
@@ -66,4 +67,24 @@ pub fn sphere_intersection(
     } else {
         None
     }
+}
+
+pub fn random_in_unit_sphere() -> Vector3 {
+    let mut rng = rand::thread_rng();
+
+    loop {
+        let p = Vector3::new(
+            rng.gen_range(-1.0..1.0),
+            rng.gen_range(-1.0..1.0),
+            rng.gen_range(-1.0..1.0),
+        );
+
+        if p.magnitude_squared() < 1.0 {
+            return p;
+        }
+    }
+}
+
+pub fn random_unit_vector() -> Vector3 {
+    random_in_unit_sphere().normalize()
 }

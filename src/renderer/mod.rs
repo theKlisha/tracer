@@ -3,7 +3,7 @@ use crate::math::{Point3, Vector3};
 pub mod simple_renderer;
 
 #[derive(Debug)]
-pub struct HitRecord {
+pub struct SurfaceInteraction {
     point: Point3,
     direction: Vector3,
     normal: Vector3,
@@ -17,7 +17,7 @@ pub enum Face {
     Back,
 }
 
-impl HitRecord {
+impl SurfaceInteraction {
     pub fn new(
         point: Point3,
         direction: Vector3,

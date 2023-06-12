@@ -8,7 +8,7 @@ pub mod traits;
 use algorythms::sphere_intersection;
 use camera::perspective::PerspectiveCameraBuilder;
 use math::{Point3, Vector3};
-use renderer::HitRecord;
+use renderer::SurfaceInteraction;
 use sampler::{normal::NormalSampler, simple_diffuse::SimpleDiffuseSampler};
 use traits::{Hittable, Sampler};
 
@@ -34,7 +34,7 @@ fn main() {
         .expect("Failed to build camera");
 
     let hittables: Box<dyn Hittable> = hittables;
-    // let sampler: Box<dyn Sampler<_>> = Box::new(NormalSampler {});
+    let _normal_sampler: Box<dyn Sampler<_>> = Box::new(NormalSampler {});
     let sampler: Box<dyn Sampler<_>> = Box::new(SimpleDiffuseSampler::default());
 
     renderer::simple_renderer::render(&camera.ray_caster(), &hittables, &sampler, 1920, 1080)
@@ -69,14 +69,14 @@ pub struct Sphere {
 }
 
 impl Hittable for Sphere {
-    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<SurfaceInteraction> {
         let t = sphere_intersection(&ray.origin, &ray.direction, &self.center, self.radius);
 
         match t {
             Some((t0, _)) if t0 > t_min && t0 < t_max => {
                 let point = ray.at(t0);
                 let normal = (point - self.center) / self.radius;
-                Some(HitRecord::new(point, ray.direction, normal, t0))
+                Some(SurfaceInteraction::new(point, ray.direction, normal, t0))
             }
             _ => None,
         }
@@ -87,7 +87,7 @@ impl<T> Hittable for Vec<T>
 where
     T: Hittable,
 {
-    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<SurfaceInteraction> {
         self.iter()
             .filter_map(|h| h.hit(ray, t_min, t_max))
             .min_by(|a, b| a.t().partial_cmp(&b.t()).unwrap())

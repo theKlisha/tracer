@@ -1,11 +1,9 @@
 use image::Rgba;
-use rand::Rng;
 use std::ops::Mul;
 
 use crate::{
-    math::Vector3,
     traits::{Hittable, Sampler},
-    Ray,
+    Ray, algorythms::random_in_unit_sphere,
 };
 
 pub struct SimpleDiffuseSampler {
@@ -66,21 +64,5 @@ impl Sampler<Rgba<u8>> for SimpleDiffuseSampler {
             .mul(255.0) as u8;
 
         Rgba([x, x, x, 0xFF])
-    }
-}
-
-fn random_in_unit_sphere() -> Vector3 {
-    let mut rng = rand::thread_rng();
-
-    loop {
-        let p = Vector3::new(
-            rng.gen_range(-1.0..1.0),
-            rng.gen_range(-1.0..1.0),
-            rng.gen_range(-1.0..1.0),
-        );
-
-        if p.magnitude_squared() < 1.0 {
-            return p.normalize();
-        }
     }
 }
