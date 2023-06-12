@@ -2,38 +2,41 @@ pub mod algorythms;
 pub mod camera;
 pub mod math;
 pub mod renderer;
+pub mod sampler;
 pub mod traits;
 
 use algorythms::sphere_intersection;
 use camera::perspective::PerspectiveCameraBuilder;
 use math::{Point3, Vector3};
 use renderer::HitRecord;
-use traits::Hittable;
+use sampler::normal::NormalSampler;
+use traits::{Hittable, Sampler};
 
 fn main() {
-    let mut hittables: Vec<Box<dyn Hittable>> = Vec::new();
+    let mut hittables = Box::new(Vec::new());
 
-    for x in -1..=1 {
-        for y in -1..=1 {
-            let sphere = Box::new(Sphere {
-                center: Point3::new(2.0 * x as f64, 2.0 * y as f64, 0.0),
-                radius: 0.5,
-            });
+    hittables.push(Sphere {
+        center: Point3::new(0.0, 0.0, 0.0),
+        radius: 1.0,
+    });
 
-            hittables.push(sphere);
-        }
-    }
+    hittables.push(Sphere {
+        center: Point3::new(0.0, -102.0, 0.0),
+        radius: 100.0,
+    });
 
     let camera = PerspectiveCameraBuilder::default()
         .aspect_frac(16, 9)
         .focal_lenght(2.0)
-        .translation(Vector3::new(0.0, 0.0, 10.0))
+        .translation(Vector3::new(0.0, 2.0, 10.0))
         .look_at(Point3::new(0.0, 0.0, 0.0))
         .build()
         .expect("Failed to build camera");
 
-    renderer::debug_normal::DebugNormalRenderer::new()
-        .render(&camera.ray_caster(), &hittables, 1920, 1080)
+    let hittables: Box<dyn Hittable> = hittables;
+    let sampler: Box<dyn Sampler<_>> = Box::new(NormalSampler {});
+
+    renderer::simple_renderer::render(&camera.ray_caster(), &hittables, &sampler, 1920, 1080)
         .save("./out.png")
         .expect("Failed to save image");
 }
@@ -79,7 +82,10 @@ impl Hittable for Sphere {
     }
 }
 
-impl Hittable for Vec<Box<dyn Hittable>> {
+impl<T> Hittable for Vec<T>
+where
+    T: Hittable,
+{
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
         self.iter()
             .filter_map(|h| h.hit(ray, t_min, t_max))

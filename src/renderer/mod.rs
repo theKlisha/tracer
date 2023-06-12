@@ -1,6 +1,6 @@
 use crate::math::{Point3, Vector3};
 
-pub mod debug_normal;
+pub mod simple_renderer;
 
 #[derive(Debug)]
 pub struct HitRecord {
