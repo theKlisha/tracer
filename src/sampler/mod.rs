@@ -1,2 +1,1 @@
-pub mod normal;
-pub mod simple_diffuse;
+pub mod simple;

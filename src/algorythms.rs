@@ -1,7 +1,7 @@
 use crate::math::{Point3, Vector3};
 use rand::Rng;
 
-pub fn moller_trumbore_intersection(
+pub fn triangle_intersection(
     origin: &Point3,
     direction: &Vector3,
     v0: &Point3,

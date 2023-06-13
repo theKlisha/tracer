@@ -1,5 +1,5 @@
 use crate::{
-    math::{Matrix4, Matrix4x3, Point3, Vector3, RowVector3, Matrix3},
+    math::{Matrix4, Matrix4x3, Point3, Vector3, RowVector3, Matrix3, Point2},
     traits::RayCaster,
     Ray,
 };
@@ -23,8 +23,8 @@ pub struct PerspectiveCameraCaster {
 }
 
 impl RayCaster for PerspectiveCameraCaster {
-    fn cast(&self, u: f64, v: f64) -> Ray {
-        let direction = self.transform * Vector3::new(u, v, 1.0);
+    fn cast(&self, uv: Point2) -> Ray {
+        let direction = self.transform * Vector3::new(uv.x, uv.y, 1.0);
         let direction = nalgebra::Vector3::from_homogeneous(direction)
             .unwrap()
             .normalize();

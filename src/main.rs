@@ -9,8 +9,8 @@ use algorythms::sphere_intersection;
 use camera::perspective::PerspectiveCameraBuilder;
 use math::{Point3, Vector3};
 use renderer::SurfaceInteraction;
-use sampler::{normal::NormalSampler, simple_diffuse::SimpleDiffuseSampler};
-use traits::{Hittable, Sampler};
+use sampler::simple::SimpleSampler;
+use traits::{Hittable, RayCaster, Sampler};
 
 fn main() {
     let mut hittables = Box::new(Vec::new());
@@ -34,10 +34,10 @@ fn main() {
         .expect("Failed to build camera");
 
     let hittables: Box<dyn Hittable> = hittables;
-    let _normal_sampler: Box<dyn Sampler<_>> = Box::new(NormalSampler {});
-    let sampler: Box<dyn Sampler<_>> = Box::new(SimpleDiffuseSampler::default());
+    let sampler: Box<dyn Sampler> = Box::new(SimpleSampler::default());
+    let caster: Box<dyn RayCaster> = Box::new(camera.ray_caster());
 
-    renderer::simple_renderer::render(&camera.ray_caster(), &hittables, &sampler, 1920, 1080)
+    renderer::simple_renderer::render(&caster, &hittables, &sampler, 1920, 1080)
         .save("./out.png")
         .expect("Failed to save image");
 }
@@ -90,6 +90,6 @@ where
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<SurfaceInteraction> {
         self.iter()
             .filter_map(|h| h.hit(ray, t_min, t_max))
-            .min_by(|a, b| a.t().partial_cmp(&b.t()).unwrap())
+            .min_by(|a, b| a.t.partial_cmp(&b.t).unwrap())
     }
 }
